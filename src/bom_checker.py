@@ -146,6 +146,11 @@ ALTERNATE_DB = {
     "ERJ-1GNF1002C-ND": "CRCW020110K0FKED",
     "DX07S024JJ7": "DX07S024JJ2"
 }
+ALTERNATE_PRICE_DB = {
+    "503398-1892": 0.35,
+    "CRCW020110K0FKED": 0.01,
+    "DX07S024JJ2": 0.40
+}
 def get_lifecycle_status(mpn):
     return LIFECYCLE_DB.get(str(mpn).strip(), "Unknown")
 
@@ -193,6 +198,58 @@ def add_alternate_column(df):
         get_alternate(row["MPN"])
         if row["Alternate_Required"] == "Yes"
         else "",
+        axis=1
+    )
+
+    return df
+def get_alternate_price(alternate):
+    return ALTERNATE_PRICE_DB.get(str(alternate).strip(), 0)
+
+
+def get_cost_saving(row):
+    original = row["Unit_Price"]
+
+    alt_price = get_alternate_price(
+        row["Suggested_Alternate"]
+    )
+
+    if original == 0 or alt_price == 0:
+        return 0
+
+    return round(
+        ((original - alt_price) / original) * 100,
+        2
+    )
+
+
+def get_recommended_action(row):
+
+    lifecycle = str(row["Lifecycle_Status"]).upper()
+
+    if lifecycle == "ACTIVE":
+        return "No Action Required"
+
+    if lifecycle == "NRND":
+        return "Evaluate Alternate"
+
+    if lifecycle == "LTB":
+        return "Qualify Alternate Immediately"
+
+    if lifecycle == "OBSOLETE":
+        return "Replace Before Next Build"
+
+    return "Review Lifecycle Status"
+
+
+def add_recommendation_columns(df):
+
+    df["Cost_Saving_%"] = df.apply(
+        get_cost_saving,
+        axis=1
+    )
+
+    df["Recommended_Action"] = df.apply(
+        get_recommended_action,
         axis=1
     )
 
@@ -287,6 +344,8 @@ def main():
         df = add_cost_columns(df)
         #Add Alternate column
         df = add_alternate_column(df)
+        #Add Alternate column
+        df = add_recommendation_columns(df)
     except Exception as e:
         print(f"Error reading Excel file: {e}")
         sys.exit(1)
