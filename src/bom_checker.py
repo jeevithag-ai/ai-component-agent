@@ -141,6 +141,11 @@ PRICE_DB = {
     "54548-2272": 0.45,
     "DX07S024JJ7": 0.55
 }
+ALTERNATE_DB = {
+    "54548-2272": "503398-1892",
+    "ERJ-1GNF1002C-ND": "CRCW020110K0FKED",
+    "DX07S024JJ7": "DX07S024JJ2"
+}
 def get_lifecycle_status(mpn):
     return LIFECYCLE_DB.get(str(mpn).strip(), "Unknown")
 
@@ -176,6 +181,20 @@ def add_cost_columns(df):
         df["Extended_Cost"] = df["Unit_Price"] * df["QTY"]
     else:
         df["Extended_Cost"] = 0
+
+    return df
+def get_alternate(mpn):
+    return ALTERNATE_DB.get(str(mpn).strip(), "")
+
+
+def add_alternate_column(df):
+    df["Suggested_Alternate"] = df.apply(
+        lambda row:
+        get_alternate(row["MPN"])
+        if row["Alternate_Required"] == "Yes"
+        else "",
+        axis=1
+    )
 
     return df
 def write_report(df, output_path, sheet_name="BOM"):
@@ -266,6 +285,8 @@ def main():
         df = add_lifecycle_risk_columns(df)
         #Add cost column
         df = add_cost_columns(df)
+        #Add Alternate column
+        df = add_alternate_column(df)
     except Exception as e:
         print(f"Error reading Excel file: {e}")
         sys.exit(1)
